@@ -4,7 +4,11 @@
 SendMode Input
 SetWorkingDir %A_ScriptDir% 
 
-ListenForHotstringStart()
+While True {
+    if ListenForHotstringStart() {
+        ListenForHotstring()
+    }
+}
 
 ; Listens for hotstring trigger chars
 ListenForHotstringStart() {
@@ -12,11 +16,7 @@ ListenForHotstringStart() {
     ih := InputHook("L3 V","{Space}")
     ih.Start()
     ih.Wait()
-    if (ih.Input = "!!!") {
-        ; Start listening for actual hotstring
-        ListenForHotstring()
-    }
-    ListenForHotstringStart()
+    Return ih.Input = "!!!"
 }
 
 ; Listen for actual hotstring
