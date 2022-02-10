@@ -2,58 +2,169 @@
 #SingleInstance Force
 #Warn
 SendMode Input
-SetWorkingDir %A_ScriptDir% 
+SetWorkingDir %A_ScriptDir%
 
-While True {
-    if ListenForHotstringStart() {
-        ListenForHotstring()
+global IsListeningForHostring := false
+global Hotstring := ""
+global AvailableFiles := []
+global AvailableFileNamesNoExt := []
+global SelectedFiles := []
+global SelectedFileNamesNoExt := []
+global ih
+
+:*b0:!!!::
+    ListenForHotstring()
+Return
+
+ListenForHotstring()
+{
+    if (IsListeningForHostring) {
+        Return
+    }
+
+    IsListeningForHostring := true
+    OutputDebug % "Listening for hotstring..."
+    
+    ih := InputHook("V T5", "{Esc}")
+    ih.OnChar := Func("OnInputHookChar")
+    ih.OnKeyDown := Func("OnInputHookKeyDown")
+    ih.OnEnd := Func("OnInputHookEnd")
+    ih.KeyOpt("{Backspace}", "N")
+    ih.KeyOpt("{Tab}", "NSI")
+    ih.Start()
+
+    SetAvailableFiles()
+    UpdateAfterAction()
+}
+
+OnInputHookChar(ih, char)
+{
+    Hotstring := Hotstring . char
+    UpdateAfterAction()
+}
+
+OnInputHookKeyDown(ih, vk, sc)
+{
+    if (vk = 8)
+    {
+        ; Backspace
+        OutputDebug % "Pressed Backspace"
+
+        strLength := StrLen(Hotstring)
+        if (strLength > 0) {
+            Hotstring := SubStr(Hotstring, 1, strLength - 1)
+        }
+
+        UpdateAfterAction()
+    }
+    else if (vk = 9)
+    {
+        ; Tab
+        OutputDebug % "Pressed Tab"
+
+        if (SelectedFiles.Length() >= 1) {
+            DeleteTypedHotstring()
+            DeleteTypedTrigger()
+            CopyAndPasteFile()
+            StopListeningForHotstring()
+        }
+        ; else if (SelectedFiles.Length() > 1)
+        ; {
+        ;     DeleteTypedHotstring()
+        ;     Hotstring := SelectedFileNamesNoExt[1]
+        ;     SendInput % Hotstring
+        ;     UpdateAfterAction()
+        ; }
     }
 }
 
-; Listens for hotstring trigger chars
-ListenForHotstringStart() {
-    OutputDebug, Starting to listening for hotstring start
-    ih := InputHook("L3 V","{Space}")
-    ih.Start()
-    ih.Wait()
-    Return ih.Input = "!!!"
+OnInputHookEnd() {
+    StopListeningForHotstring()
 }
 
-; Listen for actual hotstring
-ListenForHotstring() {
-    OutputDebug, Listening for hotstring start
-    ih := InputHook("V","{Space}")
-    ih.Start()
-    ih.Wait()
-    CheckHotstring(ih.Input)
-}
-
-; Check if hotstring is a file in working dir and then do stuff if it is
-CheckHotstring(hotstring) {
-    OutputDebug % "Received hotstring " . hotstring
-    Loop %A_WorkingDir%\*.*
-	{
-        SplitPath A_LoopFileFullPath,,,, filenameNoExt
-        
-		if (filenameNoExt = hotstring) {
-            OutputDebug % "Found hotstring " . hotstring . " image"
-            RemoveWrittenText(hotstring)
-            CopyAndPasteFile(A_LoopFileFullPath)
-            ListenForHotstringStart()
-        }
-	}
-}
-
-CopyAndPasteFile(fullFileName) {
-    InvokeVerb(fullFileName, "Copy")
-    Send ^v
-}
-
-RemoveWrittenText(hotstring) {
-    ; Loop string + space and three exclamations
-    Loop % StrLen(hotstring) + 4 {
+DeleteTypedHotstring() {
+    Loop % StrLen(Hotstring) {
         SendInput {BackSpace}
     }
+}
+
+DeleteTypedTrigger() {
+    Loop, 3 {
+        SendInput {BackSpace}
+    }
+}
+
+UpdateAfterAction()
+{
+    OutputDebug % "Current hotstring: " . Hotstring
+    SetSelectedFiles()
+    ShowTooltip()
+}
+
+SetAvailableFiles()
+{
+    Loop %A_WorkingDir%\*.*
+    {
+        if (A_LoopFileExt ~= "jpg|png|gif")
+        {
+            SplitPath A_LoopFileFullPath,,,, fileNameNoExt
+            AvailableFiles.Push(A_LoopFileFullPath)
+            AvailableFileNamesNoExt.Push(fileNameNoExt)
+        }
+    }
+    OutputDebug % "Set " . AvailableFiles.Length() . " available files"
+}
+
+SetSelectedFiles()
+{
+    SelectedFiles := []
+    SelectedFileNamesNoExt := []
+
+    for i, file in AvailableFiles
+    {
+        fileNameNoExt := AvailableFileNamesNoExt[i]
+        if (Hotstring == "" || InStr(fileNameNoExt, Hotstring) == 1)
+        {
+            SelectedFiles.Push(file)
+            SelectedFileNamesNoExt.Push(fileNameNoExt)
+        }
+    }
+    OutputDebug % "Set " . SelectedFiles.Length() . " selected files"
+}
+
+ShowTooltip()
+{
+    tooltipText := ""
+    for i, fileName in SelectedFileNamesNoExt
+    {
+        if (i = 1) {
+            tooltipText := fileName . " [TAB]"
+        }
+        else {
+            tooltipText := tooltipText . fileName
+        }
+        tooltipText := tooltipText . "   "
+    }
+    tooltipText := SubStr(tooltipText, 1, StrLen(tooltipText) - 3)
+    ToolTip % tooltipText, % A_CaretX + 15, % A_CaretY    
+}
+
+StopListeningForHotstring()
+{
+    ih.Stop()
+    ToolTip
+    IsListeningForHostring := false
+    Hotstring :=
+    SelectedFiles := []
+    SelectedFileNamesNoExt := []
+    AvailableFiles := []
+    AvailableFileNamesNoExt := []
+    OutputDebug % "Stopped listening for hotstring"
+}
+
+CopyAndPasteFile() {
+    InvokeVerb(SelectedFiles[1], "Copy")
+    Send ^v
 }
 
 ; For copying files
