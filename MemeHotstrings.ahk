@@ -77,6 +77,7 @@ OnInputHookKeyDown(ih, vk, sc)
 OnInputHookEnd()
 {
     StopListeningForHotstring()
+    ResetState()
 }
 
 OnBackspacePressed()
@@ -96,11 +97,14 @@ OnApplySuggestionPressed()
     {
         Return
     }
+    
+    StopListeningForHotstring()
 
     DeleteTypedHotstring()
     DeleteTypedTrigger()
     CopyAndPasteFile()
-    StopListeningForHotstring()
+
+    ResetState()
 }
 
 OnNextSuggestionPressed()
@@ -212,6 +216,10 @@ ShowTooltip()
 StopListeningForHotstring()
 {
     ih.Stop()
+}
+
+ResetState()
+{
     ToolTip
     IsListeningForHostring := false
     Hotstring :=
