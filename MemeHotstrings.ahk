@@ -4,12 +4,17 @@
 SendMode Input
 SetWorkingDir %A_ScriptDir%
 
+global TIMEOUT := 5
+global APPLY_SUGGESTION_KEY_VK := 0x09
+global NEXT_SUGGESTION_KEY_VK := 0xA2
+
 global IsListeningForHostring := false
 global Hotstring := ""
 global AvailableFiles := []
 global AvailableFileNamesNoExt := []
-global SelectedFiles := []
-global SelectedFileNamesNoExt := []
+global FilteredFiles := []
+global FilteredFileNamesNoExt := []
+global SelectedFileIndex := 1
 global ih
 
 :*b0:!!!::
@@ -18,28 +23,32 @@ Return
 
 ListenForHotstring()
 {
-    if (IsListeningForHostring) {
+    if (IsListeningForHostring)
+    {
         Return
     }
 
     IsListeningForHostring := true
     OutputDebug % "Listening for hotstring..."
     
-    ih := InputHook("V T5", "{Esc}")
+    ih := InputHook("V", "{Esc}")
+    ih.Timeout := TIMEOUT
     ih.OnChar := Func("OnInputHookChar")
     ih.OnKeyDown := Func("OnInputHookKeyDown")
     ih.OnEnd := Func("OnInputHookEnd")
     ih.KeyOpt("{Backspace}", "N")
-    ih.KeyOpt("{Tab}", "NSI")
+    ih.KeyOpt("{vk" . APPLY_SUGGESTION_KEY_VK . "}{vk" . NEXT_SUGGESTION_KEY_VK . "}", "NSI")
     ih.Start()
 
     SetAvailableFiles()
     UpdateAfterAction()
 }
 
+; *** EVENT LISTENERS
 OnInputHookChar(ih, char)
 {
     Hotstring := Hotstring . char
+    SelectedFileIndex := 1
     UpdateAfterAction()
 }
 
@@ -47,49 +56,86 @@ OnInputHookKeyDown(ih, vk, sc)
 {
     if (vk = 8)
     {
-        ; Backspace
         OutputDebug % "Pressed Backspace"
-
-        strLength := StrLen(Hotstring)
-        if (strLength > 0) {
-            Hotstring := SubStr(Hotstring, 1, strLength - 1)
-        }
-
-        UpdateAfterAction()
+        OnBackspacePressed()
     }
-    else if (vk = 9)
+    else if (vk = APPLY_SUGGESTION_KEY_VK)
     {
-        ; Tab
-        OutputDebug % "Pressed Tab"
-
-        if (SelectedFiles.Length() >= 1) {
-            DeleteTypedHotstring()
-            DeleteTypedTrigger()
-            CopyAndPasteFile()
-            StopListeningForHotstring()
-        }
-        ; else if (SelectedFiles.Length() > 1)
-        ; {
-        ;     DeleteTypedHotstring()
-        ;     Hotstring := SelectedFileNamesNoExt[1]
-        ;     SendInput % Hotstring
-        ;     UpdateAfterAction()
-        ; }
+        OutputDebug % "Pressed Apply Suggestion Key"
+        OnApplySuggestionPressed()
+    }
+    else if (vk = NEXT_SUGGESTION_KEY_VK)
+    {
+        OutputDebug % "Pressed Next Suggestion Key"
+        OnNextSuggestionPressed()
+    }
+    else {
+        OutputDebug % "Pressed something: " . vk
     }
 }
 
-OnInputHookEnd() {
+OnInputHookEnd()
+{
     StopListeningForHotstring()
 }
 
-DeleteTypedHotstring() {
-    Loop % StrLen(Hotstring) {
+OnBackspacePressed()
+{
+    strLength := StrLen(Hotstring)
+    if (strLength > 0)
+    {
+        Hotstring := SubStr(Hotstring, 1, strLength - 1)
+    }
+
+    UpdateAfterAction()
+}
+
+OnApplySuggestionPressed()
+{
+    if (FilteredFiles.Length() = 0)
+    {
+        Return
+    }
+
+    DeleteTypedHotstring()
+    DeleteTypedTrigger()
+    CopyAndPasteFile()
+    StopListeningForHotstring()
+}
+
+OnNextSuggestionPressed()
+{
+    filteredFilesLength := FilteredFiles.Length()
+
+    if (filteredFilesLength = 0)
+    {
+        Return
+    }
+
+    if (SelectedFileIndex + 1 <= filteredFilesLength)
+    {
+        SelectedFileIndex := SelectedFileIndex + 1
+    }
+    else
+    {
+        SelectedFileIndex := 1
+    }
+    
+    UpdateAfterAction()
+}
+; *** END EVENT LISTENERS
+
+DeleteTypedHotstring()
+{
+    Loop % StrLen(Hotstring)
+    {
         SendInput {BackSpace}
     }
 }
 
 DeleteTypedTrigger() {
-    Loop, 3 {
+    Loop, 3
+    {
         SendInput {BackSpace}
     }
 }
@@ -97,8 +143,9 @@ DeleteTypedTrigger() {
 UpdateAfterAction()
 {
     OutputDebug % "Current hotstring: " . Hotstring
-    SetSelectedFiles()
+    SetFilteredFiles()
     ShowTooltip()
+    ih.Timeout := TIMEOUT
 }
 
 SetAvailableFiles()
@@ -115,37 +162,53 @@ SetAvailableFiles()
     OutputDebug % "Set " . AvailableFiles.Length() . " available files"
 }
 
-SetSelectedFiles()
+SetFilteredFiles()
 {
-    SelectedFiles := []
-    SelectedFileNamesNoExt := []
+    FilteredFiles := []
+    FilteredFileNamesNoExt := []
 
     for i, file in AvailableFiles
     {
         fileNameNoExt := AvailableFileNamesNoExt[i]
         if (Hotstring == "" || InStr(fileNameNoExt, Hotstring) == 1)
         {
-            SelectedFiles.Push(file)
-            SelectedFileNamesNoExt.Push(fileNameNoExt)
+            FilteredFiles.Push(file)
+            FilteredFileNamesNoExt.Push(fileNameNoExt)
         }
     }
-    OutputDebug % "Set " . SelectedFiles.Length() . " selected files"
+    OutputDebug % "Set " . FilteredFiles.Length() . " filtered files"
 }
 
 ShowTooltip()
 {
     tooltipText := ""
-    for i, fileName in SelectedFileNamesNoExt
+    for i, fileName in FilteredFileNamesNoExt
     {
-        if (i = 1) {
-            tooltipText := fileName . " [TAB]"
+        if (i = SelectedFileIndex)
+        {
+            StringUpper, upperCaseFileName, fileName
+            if (i = 1)
+            {
+                tooltipText := upperCaseFileName . "  "
+            }
+            else
+            {
+                tooltipText := tooltipText . "  " . upperCaseFileName . "  "
+            }
         }
-        else {
+        else
+        {
             tooltipText := tooltipText . fileName
         }
         tooltipText := tooltipText . "   "
     }
     tooltipText := SubStr(tooltipText, 1, StrLen(tooltipText) - 3)
+
+    if (tooltipText = "")
+    {
+        tooltipText := "No memes..."
+    }
+
     ToolTip % tooltipText, % A_CaretX + 15, % A_CaretY    
 }
 
@@ -155,20 +218,28 @@ StopListeningForHotstring()
     ToolTip
     IsListeningForHostring := false
     Hotstring :=
-    SelectedFiles := []
-    SelectedFileNamesNoExt := []
+    FilteredFiles := []
+    FilteredFileNamesNoExt := []
+    SelectedFileIndex := 1
+
     AvailableFiles := []
     AvailableFileNamesNoExt := []
+
+    ; Reset trigger listener
+    Hotstring("Reset")
+
     OutputDebug % "Stopped listening for hotstring"
 }
 
-CopyAndPasteFile() {
-    InvokeVerb(SelectedFiles[1], "Copy")
+CopyAndPasteFile()
+{
+    InvokeVerb(FilteredFiles[SelectedFileIndex], "Copy")
     Send ^v
 }
 
 ; For copying files
-InvokeVerb(path, menu, validate=True) {
+InvokeVerb(path, menu, validate=True)
+{
     ;by A_Samurai
     ;v 1.0.1 http://sites.google.com/site/ahkref/custom-functions/invokeverb
     objShell := ComObjCreate("Shell.Application")
