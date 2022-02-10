@@ -3,6 +3,7 @@
 #Warn
 SendMode Input
 SetWorkingDir %A_ScriptDir%
+SetTrayIcon()
 
 global TIMEOUT := 5
 global APPLY_SUGGESTION_KEY_VK := 0x09
@@ -97,7 +98,7 @@ OnApplySuggestionPressed()
     {
         Return
     }
-    
+
     StopListeningForHotstring()
 
     DeleteTypedHotstring()
@@ -240,6 +241,11 @@ CopyAndPasteFile()
 {
     InvokeVerb(FilteredFiles[SelectedFileIndex], "Copy")
     Send ^v
+}
+
+SetTrayIcon() {
+    I_Icon := "tray_icon.ico"
+    Menu, Tray, Icon, % I_Icon
 }
 
 ; For copying files
