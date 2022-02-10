@@ -150,14 +150,11 @@ UpdateAfterAction()
 
 SetAvailableFiles()
 {
-    Loop %A_WorkingDir%\*.*
+    Loop %A_WorkingDir%\images\*.*
     {
-        if (A_LoopFileExt ~= "jpg|png|gif")
-        {
-            SplitPath A_LoopFileFullPath,,,, fileNameNoExt
-            AvailableFiles.Push(A_LoopFileFullPath)
-            AvailableFileNamesNoExt.Push(fileNameNoExt)
-        }
+        SplitPath A_LoopFileFullPath,,,, fileNameNoExt
+        AvailableFiles.Push(A_LoopFileFullPath)
+        AvailableFileNamesNoExt.Push(fileNameNoExt)
     }
     OutputDebug % "Set " . AvailableFiles.Length() . " available files"
 }
