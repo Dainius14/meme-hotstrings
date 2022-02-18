@@ -77,6 +77,11 @@ OnInputHookKeyDown(ih, vk, sc)
 
 OnInputHookEnd()
 {
+    if (ih.EndReason = "Stopped")
+    {
+        Return
+    }
+
     StopListeningForHotstring()
     ResetState()
 }
@@ -103,7 +108,7 @@ OnApplySuggestionPressed()
 
     DeleteTypedHotstring()
     DeleteTypedTrigger()
-    CopyAndPasteFile()
+    CopyAndPasteFile(FilteredFiles[SelectedFileIndex])
 
     ResetState()
 }
@@ -147,7 +152,8 @@ DeleteTypedTrigger() {
 
 UpdateAfterAction()
 {
-    OutputDebug % "Current hotstring: " . Hotstring
+    OutputDebug % "Current hotstring: '" . Hotstring . "'"
+    OutputDebug % "Selected file index: " . SelectedFileIndex
     SetFilteredFiles()
     ShowTooltip()
     ih.Timeout := TIMEOUT
@@ -172,7 +178,7 @@ SetFilteredFiles()
     for i, file in AvailableFiles
     {
         fileNameNoExt := AvailableFileNamesNoExt[i]
-        if (Hotstring == "" || InStr(fileNameNoExt, Hotstring) == 1)
+        if (Hotstring = "" || InStr(fileNameNoExt, Hotstring) = 1)
         {
             FilteredFiles.Push(file)
             FilteredFileNamesNoExt.Push(fileNameNoExt)
@@ -189,21 +195,28 @@ ShowTooltip()
         if (i = SelectedFileIndex)
         {
             StringUpper, upperCaseFileName, fileName
-            if (i = 1)
+            ; Prepend additional space if not first item
+            if (i > 1)
             {
-                tooltipText := upperCaseFileName . "  "
+                tooltipText := tooltipText . "  "
             }
-            else
+
+            tooltipText := tooltipText . upperCaseFileName
+
+            ; Append additional space if not last item
+            if (i < FilteredFiles.Length())
             {
-                tooltipText := tooltipText . "  " . upperCaseFileName . "  "
+                tooltipText := tooltipText . "  "
             }
         }
         else
         {
             tooltipText := tooltipText . fileName
         }
+
         tooltipText := tooltipText . "   "
     }
+    
     tooltipText := SubStr(tooltipText, 1, StrLen(tooltipText) - 3)
 
     if (tooltipText = "")
@@ -223,7 +236,7 @@ ResetState()
 {
     ToolTip
     IsListeningForHostring := false
-    Hotstring :=
+    Hotstring := ""
     FilteredFiles := []
     FilteredFileNamesNoExt := []
     SelectedFileIndex := 1
@@ -237,9 +250,11 @@ ResetState()
     OutputDebug % "Stopped listening for hotstring"
 }
 
-CopyAndPasteFile()
+CopyAndPasteFile(file)
 {
-    InvokeVerb(FilteredFiles[SelectedFileIndex], "Copy")
+    OutputDebug % "Copying file '" . file . "'"
+    
+    InvokeVerb(file, "Copy")
     Send ^v
 }
 
