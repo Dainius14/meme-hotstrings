@@ -5,6 +5,7 @@ SendMode Input
 SetWorkingDir %A_ScriptDir%
 SetTrayIcon()
 
+global BREAK_TOOLTIP_AT_INDEX = 10
 global TIMEOUT := 5
 global APPLY_SUGGESTION_KEY_VK := 0x09
 global NEXT_SUGGESTION_KEY_VK := 0xA2
@@ -196,7 +197,7 @@ ShowTooltip()
         {
             StringUpper, upperCaseFileName, fileName
             ; Prepend additional space if not first item
-            if (i > 1)
+            if (i > 1 && !(i > 10 && Mod(i, BREAK_TOOLTIP_AT_INDEX) = 1))
             {
                 tooltipText := tooltipText . "  "
             }
@@ -214,7 +215,15 @@ ShowTooltip()
             tooltipText := tooltipText . fileName
         }
 
-        tooltipText := tooltipText . "   "
+        ; Break long lines
+        if (Mod(i, BREAK_TOOLTIP_AT_INDEX) = 0)
+        {
+            tooltipText := tooltipText . "`n"
+        }
+        else
+        {
+            tooltipText := tooltipText . "   "
+        }
     }
     
     tooltipText := SubStr(tooltipText, 1, StrLen(tooltipText) - 3)
