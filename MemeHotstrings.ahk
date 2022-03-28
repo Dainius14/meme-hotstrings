@@ -179,13 +179,31 @@ SetFilteredFiles()
     for i, file in AvailableFiles
     {
         fileNameNoExt := AvailableFileNamesNoExt[i]
-        if (Hotstring = "" || InStr(fileNameNoExt, Hotstring) = 1)
+        if (ShouldNameBeFiltered(fileNameNoExt))
         {
             FilteredFiles.Push(file)
             FilteredFileNamesNoExt.Push(fileNameNoExt)
         }
     }
     OutputDebug % "Set " . FilteredFiles.Length() . " filtered files"
+}
+
+ShouldNameBeFiltered(fileNameNoExt)
+{
+    if (Hotstring = "")
+        Return True
+
+
+    splitFileName := StrSplit(fileNameNoExt, "_")
+    for i, word in splitFileName
+    {
+        if (InStr(word, Hotstring) = 1)
+        {
+            return True
+        }
+    }
+
+    return False
 }
 
 ShowTooltip()
