@@ -9,6 +9,7 @@ global BREAK_TOOLTIP_AT_INDEX = 10
 global TIMEOUT := 5
 global APPLY_SUGGESTION_KEY_VK := 0x09
 global NEXT_SUGGESTION_KEY_VK := 0xA2
+global PREV_SUGGESTION_KEY_VK := 0xA0
 
 global IsListeningForHostring := false
 global Hotstring := ""
@@ -39,7 +40,7 @@ ListenForHotstring()
     ih.OnKeyDown := Func("OnInputHookKeyDown")
     ih.OnEnd := Func("OnInputHookEnd")
     ih.KeyOpt("{Backspace}", "N")
-    ih.KeyOpt("{vk" . APPLY_SUGGESTION_KEY_VK . "}{vk" . NEXT_SUGGESTION_KEY_VK . "}", "NSI")
+    ih.KeyOpt("{vk" . APPLY_SUGGESTION_KEY_VK . "}{vk" . NEXT_SUGGESTION_KEY_VK . "}{vk" . PREV_SUGGESTION_KEY_VK . "}", "NSI")
     ih.Start()
 
     SetAvailableFiles()
@@ -70,6 +71,11 @@ OnInputHookKeyDown(ih, vk, sc)
     {
         OutputDebug % "Pressed Next Suggestion Key"
         OnNextSuggestionPressed()
+    }
+    else if (vk = PREV_SUGGESTION_KEY_VK)
+    {
+        OutputDebug % "Pressed Previous Suggestion Key"
+        OnPreviousSuggestionPressed()
     }
     else {
         OutputDebug % "Pressed something: " . vk
@@ -114,6 +120,27 @@ OnApplySuggestionPressed()
     ResetState()
 }
 
+OnPreviousSuggestionPressed()
+{
+    filteredFilesLength := FilteredFiles.Length()
+
+    if (filteredFilesLength = 0)
+    {
+        Return
+    }
+
+    if (SelectedFileIndex - 1 >= 1)
+    {
+        SelectedFileIndex := SelectedFileIndex - 1
+    }
+    else
+    {
+        SelectedFileIndex := FilteredFiles.Length()
+    }
+    
+    UpdateAfterAction()
+}
+
 OnNextSuggestionPressed()
 {
     filteredFilesLength := FilteredFiles.Length()
@@ -134,6 +161,7 @@ OnNextSuggestionPressed()
     
     UpdateAfterAction()
 }
+
 ; *** END EVENT LISTENERS
 
 DeleteTypedHotstring()
